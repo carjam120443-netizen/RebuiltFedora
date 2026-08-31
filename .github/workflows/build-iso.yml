@@ -13,44 +13,60 @@ permissions:
 
 env:
   IMAGE_NAME: rebuiltfedora-xfce
+  FEDORA_RELEASE: '44'
 
 jobs:
   build-iso:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Fedora image tools
+      - name: Install Podman
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            lorax \
-            pykickstart \
-            xorriso \
-            squashfs-tools \
-            syslinux-utils
+          sudo apt-get install -y podman
 
       - name: Validate Kickstart
         run: |
-          ksvalidator kickstarts/rebuiltfedora-xfce.ks
+          podman run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace:Z" \
+            fedora:${FEDORA_RELEASE} \
+            bash -c 'dnf -y install pykickstart && ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks'
 
-      - name: Install mock and Fedora release data
+      - name: Build ISO inside Fedora
         run: |
-          sudo apt-get install -y mock
-          sudo usermod -aG mock "$USER"
+          mkdir -p output
+          podman run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/workspace:Z" \
+            -w /workspace \
+            fedora:${FEDORA_RELEASE} \
+            bash -c '
+              set -eux
+              dnf -y update
+              dnf -y install \
+                lorax \
+                pykickstart \
+                xorriso \
+                squashfs-tools \
+                syslinux \
+                dosfstools \
+                isomd5sum
 
-      - name: Build ISO
-        run: |
-          sudo livemedia-creator \
-            --make-iso \
-            --ks kickstarts/rebuiltfedora-xfce.ks \
-            --no-virt \
-            --resultdir "$GITHUB_WORKSPACE/output" \
-            --project RebuiltFedora \
-            --volid REBUILTFEDORA_XFCE
+              ksvalidator kickstarts/rebuiltfedora-xfce.ks
+              mkdir -p /workspace/output
+
+              livemedia-creator \
+                --make-iso \
+                --ks /workspace/kickstarts/rebuiltfedora-xfce.ks \
+                --location https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_RELEASE}/Everything/x86_64/os/ \
+                --no-virt \
+                --resultdir /workspace/output \
+                --project RebuiltFedora \
+                --volid REBUILTFEDORA_XFCE
+            '
 
       - name: List build output
         if: always()
