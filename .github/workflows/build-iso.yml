@@ -45,8 +45,10 @@ jobs:
       - name: Build ISO inside Fedora
         run: |
           set -euo pipefail
+
+          # livemedia-creator requires --resultdir to NOT exist before it starts.
+          # Do not mkdir this directory here; livemedia-creator creates it itself.
           rm -rf "$GITHUB_WORKSPACE/output"
-          mkdir -p "$GITHUB_WORKSPACE/output"
 
           podman run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
@@ -71,9 +73,8 @@ jobs:
 
               ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
 
-              # --no-virt requires Anaconda. Keep the result directory clean.
+              # livemedia-creator's result directory must not exist beforehand.
               rm -rf /workspace/output
-              mkdir -p /workspace/output
 
               livemedia-creator \
                 --make-iso \
