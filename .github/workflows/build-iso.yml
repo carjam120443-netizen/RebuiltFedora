@@ -42,27 +42,43 @@ jobs:
               ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
             '
 
+      - name: Prepare loop devices
+        run: |
+          set -euo pipefail
+          sudo modprobe loop || true
+          for i in $(seq 0 15); do
+            if [ ! -e "/dev/loop$i" ]; then
+              sudo mknod -m 0666 "/dev/loop$i" b 7 "$i"
+            else
+              sudo chmod 0666 "/dev/loop$i"
+            fi
+          done
+          if [ ! -e /dev/loop-control ]; then
+            sudo mknod -m 0666 /dev/loop-control c 10 237
+          else
+            sudo chmod 0666 /dev/loop-control
+          fi
+          sudo losetup -D || true
+          echo "Host loop devices:"
+          ls -l /dev/loop* || true
+          sudo losetup -f
+
       - name: Build ISO inside Fedora
         run: |
           set -euo pipefail
           rm -rf "$GITHUB_WORKSPACE/output"
 
-          # livemedia-creator creates a temporary disk image and attaches it
-          # with losetup. GitHub-hosted runners do not always expose enough
-          # loop devices inside the privileged Podman container, so create a
-          # small pool explicitly before starting the Fedora build.
-          sudo modprobe loop || true
+          # livemedia-creator needs real loop block devices for its temporary
+          # disk image. Pass every loop device explicitly into the container;
+          # --privileged alone does not guarantee that Podman exposes the
+          # host's loop devices to the container.
+          DEVICE_ARGS="--device=/dev/loop-control"
           for i in $(seq 0 15); do
-            if [ ! -e "/dev/loop$i" ]; then
-              sudo mknod -m 0660 "/dev/loop$i" b 7 "$i"
-            fi
+            DEVICE_ARGS="$DEVICE_ARGS --device=/dev/loop$i"
           done
-          sudo mknod -m 0660 /dev/loop-control c 10 237 2>/dev/null || true
-          sudo chmod 0666 /dev/loop-control /dev/loop[0-9]* 2>/dev/null || true
-          losetup -f || true
 
           podman run --rm --privileged \
-            --device /dev/loop-control \
+            $DEVICE_ARGS \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
             -w /workspace \
             -e FEDORA_RELEASE="$FEDORA_RELEASE" \
@@ -84,19 +100,17 @@ jobs:
                 dosfstools \
                 isomd5sum
 
-              # lorax-lmc-novirt provides livemedia-creator.
               command -v livemedia-creator
               livemedia-creator -V
 
               ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
-
-              # livemedia-creator requires the result directory to not exist.
               rm -rf /workspace/output
 
-              # Verify loop support before the expensive Anaconda stage.
-              echo "Available loop devices:"
+              echo "Container loop devices:"
               ls -l /dev/loop* 2>/dev/null || true
-              losetup -f
+              losetup -D || true
+              LOOP_DEV="$(losetup -f)"
+              echo "Free loop device: $LOOP_DEV"
 
               # Build the actual bootable ISO.
               livemedia-creator \
