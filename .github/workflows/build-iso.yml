@@ -69,15 +69,16 @@ jobs:
                 dosfstools \
                 isomd5sum
 
-              # On Fedora, livemedia-creator is provided by lorax-lmc-novirt.
+              # lorax-lmc-novirt provides livemedia-creator.
               command -v livemedia-creator
-              livemedia-creator --version
+              livemedia-creator -V
 
               ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
 
               # livemedia-creator requires the result directory to not exist.
               rm -rf /workspace/output
 
+              # Build the actual bootable ISO.
               livemedia-creator \
                 --make-iso \
                 --ks /workspace/kickstarts/rebuiltfedora-xfce.ks \
