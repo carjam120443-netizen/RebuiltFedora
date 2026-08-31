@@ -18,6 +18,7 @@ curl
 wget
 git
 fastfetch
+dracut-live
 %end
 
 %post
