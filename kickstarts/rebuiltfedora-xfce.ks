@@ -5,7 +5,8 @@ lang en_US.UTF-8
 keyboard us
 timezone America/New_York --utc
 
-# livemedia-creator requires a supported install source.
+# livemedia-creator requires a supported install source and active networking.
+network --bootproto=dhcp --device=link --activate
 url --url=https://download.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
 
 %packages
