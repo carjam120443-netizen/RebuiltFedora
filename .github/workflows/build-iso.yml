@@ -19,7 +19,7 @@ env:
 jobs:
   build-iso:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Check out repository
@@ -35,7 +35,6 @@ jobs:
         run: |
           podman run --rm \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
-            -e FEDORA_RELEASE="$FEDORA_RELEASE" \
             fedora:"$FEDORA_RELEASE" \
             bash -c '
               set -euo pipefail
@@ -46,8 +45,8 @@ jobs:
       - name: Build ISO inside Fedora
         run: |
           set -euo pipefail
-          rm -rf output
-          mkdir -p output
+          rm -rf "$GITHUB_WORKSPACE/output"
+          mkdir -p "$GITHUB_WORKSPACE/output"
 
           podman run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
@@ -61,6 +60,7 @@ jobs:
 
               dnf -y update
               dnf -y install \
+                anaconda \
                 lorax \
                 pykickstart \
                 xorriso \
@@ -70,6 +70,8 @@ jobs:
                 isomd5sum
 
               ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
+
+              # --no-virt requires Anaconda. Keep the result directory clean.
               rm -rf /workspace/output
               mkdir -p /workspace/output
 
