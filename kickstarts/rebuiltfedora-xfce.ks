@@ -1,9 +1,12 @@
 # RebuiltFedora XFCE Kickstart
-# Lightweight Fedora desktop configuration
+# Lightweight Fedora 44 desktop configuration
 
 lang en_US.UTF-8
 keyboard us
 timezone America/New_York --utc
+
+# livemedia-creator requires a supported install source.
+url --url=https://download.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
 
 %packages
 @xfce-desktop-environment
