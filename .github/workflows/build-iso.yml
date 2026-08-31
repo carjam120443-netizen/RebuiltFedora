@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'kickstarts/**'
+      - 'branding/**'
       - '.github/workflows/build-iso.yml'
 
 permissions:
@@ -28,23 +29,36 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y podman
+          podman --version
 
       - name: Validate Kickstart
         run: |
           podman run --rm \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
-            fedora:${FEDORA_RELEASE} \
-            bash -c 'dnf -y install pykickstart && ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks'
+            -e FEDORA_RELEASE="$FEDORA_RELEASE" \
+            fedora:"$FEDORA_RELEASE" \
+            bash -c '
+              set -euo pipefail
+              dnf -y install pykickstart
+              ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
+            '
 
       - name: Build ISO inside Fedora
         run: |
+          set -euo pipefail
+          rm -rf output
           mkdir -p output
+
           podman run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
             -w /workspace \
-            fedora:${FEDORA_RELEASE} \
+            -e FEDORA_RELEASE="$FEDORA_RELEASE" \
+            fedora:"$FEDORA_RELEASE" \
             bash -c '
-              set -eux
+              set -euo pipefail
+
+              : "${FEDORA_RELEASE:?FEDORA_RELEASE must be set}"
+
               dnf -y update
               dnf -y install \
                 lorax \
@@ -55,13 +69,14 @@ jobs:
                 dosfstools \
                 isomd5sum
 
-              ksvalidator kickstarts/rebuiltfedora-xfce.ks
+              ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
+              rm -rf /workspace/output
               mkdir -p /workspace/output
 
               livemedia-creator \
                 --make-iso \
                 --ks /workspace/kickstarts/rebuiltfedora-xfce.ks \
-                --location https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_RELEASE}/Everything/x86_64/os/ \
+                --location "https://download.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_RELEASE}/Everything/x86_64/os/" \
                 --no-virt \
                 --resultdir /workspace/output \
                 --project RebuiltFedora \
@@ -71,7 +86,8 @@ jobs:
       - name: List build output
         if: always()
         run: |
-          find output -maxdepth 2 -type f -print 2>/dev/null || true
+          echo "Build output:"
+          find output -maxdepth 2 -type f -printf '%p (%s bytes)\n' 2>/dev/null || true
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
