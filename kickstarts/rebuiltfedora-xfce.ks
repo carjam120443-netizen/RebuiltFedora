@@ -5,7 +5,6 @@ lang en_US.UTF-8
 keyboard us
 timezone America/New_York --utc
 
-# Package selection
 %packages
 @xfce-desktop-environment
 @base-x
@@ -22,14 +21,11 @@ fastfetch
 %end
 
 %post
-# Enable the graphical desktop and networking on first boot
 systemctl enable NetworkManager
 systemctl enable firewalld
 systemctl set-default graphical.target
 
-# Create the live development user
+# Create the development user
 useradd -m -G wheel rebuilt
 passwd -d rebuilt
-%end
-
 %end
