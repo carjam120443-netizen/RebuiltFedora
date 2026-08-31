@@ -45,9 +45,6 @@ jobs:
       - name: Build ISO inside Fedora
         run: |
           set -euo pipefail
-
-          # livemedia-creator requires --resultdir to NOT exist before it starts.
-          # Do not mkdir this directory here; livemedia-creator creates it itself.
           rm -rf "$GITHUB_WORKSPACE/output"
 
           podman run --rm --privileged \
@@ -64,6 +61,7 @@ jobs:
               dnf -y install \
                 anaconda \
                 lorax \
+                lorax-lmc-novirt \
                 pykickstart \
                 xorriso \
                 squashfs-tools \
@@ -71,9 +69,13 @@ jobs:
                 dosfstools \
                 isomd5sum
 
+              # On Fedora, livemedia-creator is provided by lorax-lmc-novirt.
+              command -v livemedia-creator
+              livemedia-creator --version
+
               ksvalidator /workspace/kickstarts/rebuiltfedora-xfce.ks
 
-              # livemedia-creator's result directory must not exist beforehand.
+              # livemedia-creator requires the result directory to not exist.
               rm -rf /workspace/output
 
               livemedia-creator \
