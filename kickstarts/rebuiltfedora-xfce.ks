@@ -9,6 +9,11 @@ timezone America/New_York --utc
 network --bootproto=dhcp --device=link --activate
 url --url=https://download.fedoraproject.org/pub/fedora/linux/releases/44/Everything/x86_64/os/
 
+# Give Anaconda/livemedia-creator a real root filesystem to size and build.
+# Without this, livemedia-creator stops with "No / partition in the kickstart".
+clearpart --all --initlabel
+autopart --type=plain
+
 %packages
 @xfce-desktop-environment
 @base-x
