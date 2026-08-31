@@ -1,0 +1,66 @@
+name: Build RebuiltFedora XFCE ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'kickstarts/**'
+      - '.github/workflows/build-iso.yml'
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: rebuiltfedora-xfce
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Fedora image tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            lorax \
+            pykickstart \
+            xorriso \
+            squashfs-tools \
+            syslinux-utils
+
+      - name: Validate Kickstart
+        run: |
+          ksvalidator kickstarts/rebuiltfedora-xfce.ks
+
+      - name: Install mock and Fedora release data
+        run: |
+          sudo apt-get install -y mock
+          sudo usermod -aG mock "$USER"
+
+      - name: Build ISO
+        run: |
+          sudo livemedia-creator \
+            --make-iso \
+            --ks kickstarts/rebuiltfedora-xfce.ks \
+            --no-virt \
+            --resultdir "$GITHUB_WORKSPACE/output" \
+            --project RebuiltFedora \
+            --volid REBUILTFEDORA_XFCE
+
+      - name: List build output
+        if: always()
+        run: |
+          find output -maxdepth 2 -type f -print 2>/dev/null || true
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RebuiltFedora-XFCE-ISO
+          path: output/*.iso
+          if-no-files-found: error
+          retention-days: 14
