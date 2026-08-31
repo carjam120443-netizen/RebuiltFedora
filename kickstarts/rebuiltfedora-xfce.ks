@@ -1,0 +1,35 @@
+# RebuiltFedora XFCE Kickstart
+# Initial lightweight Fedora desktop configuration
+
+lang en_US.UTF-8
+keyboard us
+timezone America/New_York --utc
+
+# Package selection
+%packages
+@xfce-desktop-environment
+@base-x
+NetworkManager
+NetworkManager-wifi
+firewalld
+sudo
+vim-minimal
+nano
+curl
+wget
+git
+fastfetch
+%end
+
+%post
+# Enable the graphical desktop and networking on first boot
+systemctl enable NetworkManager
+systemctl enable firewalld
+systemctl set-default graphical.target
+
+# Create the live development user
+useradd -m -G wheel rebuilt
+passwd -d rebuilt
+%end
+
+%end
