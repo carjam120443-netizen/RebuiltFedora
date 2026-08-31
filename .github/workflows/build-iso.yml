@@ -47,7 +47,22 @@ jobs:
           set -euo pipefail
           rm -rf "$GITHUB_WORKSPACE/output"
 
+          # livemedia-creator creates a temporary disk image and attaches it
+          # with losetup. GitHub-hosted runners do not always expose enough
+          # loop devices inside the privileged Podman container, so create a
+          # small pool explicitly before starting the Fedora build.
+          sudo modprobe loop || true
+          for i in $(seq 0 15); do
+            if [ ! -e "/dev/loop$i" ]; then
+              sudo mknod -m 0660 "/dev/loop$i" b 7 "$i"
+            fi
+          done
+          sudo mknod -m 0660 /dev/loop-control c 10 237 2>/dev/null || true
+          sudo chmod 0666 /dev/loop-control /dev/loop[0-9]* 2>/dev/null || true
+          losetup -f || true
+
           podman run --rm --privileged \
+            --device /dev/loop-control \
             -v "$GITHUB_WORKSPACE:/workspace:Z" \
             -w /workspace \
             -e FEDORA_RELEASE="$FEDORA_RELEASE" \
@@ -77,6 +92,11 @@ jobs:
 
               # livemedia-creator requires the result directory to not exist.
               rm -rf /workspace/output
+
+              # Verify loop support before the expensive Anaconda stage.
+              echo "Available loop devices:"
+              ls -l /dev/loop* 2>/dev/null || true
+              losetup -f
 
               # Build the actual bootable ISO.
               livemedia-creator \
